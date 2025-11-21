@@ -10,7 +10,7 @@
 
 **Process list (Objective 1):** During every baseline capture (both initial and post-update), task3-create-baseline.yml invokes create_baseline.sh, which records the full set of Apache processes (PIDs, command lines, users). These baselines are stored under /root/apache-monitor/data/baselines/ and fetched back to data/baselines/ for review.
 
-**Day 0 file/path inventory (Objective 2):** The initial baseline (“Day 0”) captures all paths Apache accessed under the original profile. That JSON output is archived and used when constructing the first AppArmor profile, so you have the exact filesystem footprint at deployment time.
+**Day 0 (pre-update) file/path inventory (Objective 2):** The initial baseline (“Day 0”) captures all paths Apache accessed under the original profile. That JSON output is archived and used when constructing the first AppArmor profile, so you have the exact filesystem footprint at deployment time.
 
 **Day 2 (post-update) file/path inventory (Objective 3):** After any regular or emergency OS update, we rerun the baseline on DEV and feed the “Day 2” snapshot into detect_apache_changes.sh. The resulting delta (apache-delta-*.json/.txt) explicitly lists new, removed, and denied file paths. That’s what drives the profile updates and the approval package.
 
