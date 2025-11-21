@@ -1336,22 +1336,23 @@ grep -n "{{ variable_name }}" ansible/playbooks/<playbook>.yml
 ## High-Level System Overview
 
 ```mermaid
-graph TB
+flowchart TB
     Start([Start: New Deployment]) --> Phase0[Phase 0: Zero-Day Deployment]
     Phase0 --> Production[Production Running with Baseline Profiles]
     
     Production --> Decision{What Triggers Change?}
     
-    Decision -->|Scheduled OS Update| Phase1[Phase 1: Regular Update Workflow]
-    Decision -->|Emergency Security Patch| Phase2[Phase 2: Ad-Hoc/Emergency Update]
-    Decision -->|Application Changes or Denials| Phase3[Phase 3: Auto-Finetuning]
+    Decision -->|"Scheduled OS Update"| Phase1[Phase 1: Regular Update Workflow]
+    Decision -->|"Emergency Security Patch"| Phase2[Phase 2: Ad-Hoc/Emergency Update]
+    Decision -->|"Application Changes or Denials"| Phase3[Phase 3: Auto-Finetuning]
     
     Phase1 --> Monitor[Continuous Monitoring]
     Phase2 --> Monitor
     Phase3 --> Monitor
     
     Monitor --> Decision
-    
+
+    %% Node Styles
     style Phase0 fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style Phase1 fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
     style Phase2 fill:#fff3e0,stroke:#e65100,stroke-width:3px
@@ -1359,6 +1360,7 @@ graph TB
     style Production fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
     style Monitor fill:#fff9c4,stroke:#f57f17,stroke-width:2px
 ```
+# End of Selection
 
 ---
 
@@ -1384,227 +1386,6 @@ graph TB
     Monitor --> Decision
 ```
 
----
-
-## Phase 0: Zero-Day Deployment
-
-```mermaid
-flowchart TD
-    Start([Start: Fresh Infrastructure]) --> Setup[Setup Control Panel<br/>Install Ansible Clone Repo]
-    Setup --> Inventory[Configure Inventory File<br/>hosts control dev_machines production]
-    Inventory --> TestConn[Test SSH Connectivity<br/>ansible -m ping]
-    
-    TestConn -->|Failed| FixSSH[Fix SSH Keys Permissions]
-    FixSSH --> TestConn
-    
-    TestConn -->|Success| Deploy[Deploy Monitoring Infrastructure<br/>apparmor-deploy.yml]
-    
-    Deploy --> DeploySteps[Deploy to All RPis:<br/>root apache-monitor structure<br/>create_baseline.sh<br/>detect_apache_changes.sh<br/>test_apache_functions.sh]
-    
-    DeploySteps --> CreateProdBase[Create Initial Production Baselines<br/>task3-create-baseline.yml<br/>target_group production]
-    
-    CreateProdBase --> ProdBaseFiles[Production Baseline Files Created<br/>initial-production-timestamp.json]
-    
-    ProdBaseFiles --> DeployProfile[Deploy Initial AppArmor Profiles<br/>Copy profiles usr.sbin.apache2<br/>to etc apparmor.d]
-    
-    DeployProfile --> ReloadProd[Reload Profiles on Production<br/>apparmor_parser -r<br/>aa-enforce usr sbin apache2]
-    
-    ReloadProd --> VerifyProd{Verify Production<br/>Apache Running?<br/>No DENIED logs?}
-    
-    VerifyProd -->|Issues Found| TroubleshootProd[Troubleshoot:<br/>Check aa-status<br/>Review syslog<br/>Test HTTP access]
-    TroubleshootProd --> VerifyProd
-    
-    VerifyProd -->|Success| SyncDev[Sync DEV Machine<br/>Copy same profile<br/>Create initial-dev baseline]
-    
-    SyncDev --> VerifyDev{Verify DEV<br/>Mirrors Production?}
-    
-    VerifyDev -->|No| FixDev[Fix Configuration Differences]
-    FixDev --> SyncDev
-    
-    VerifyDev -->|Yes| Complete([Phase 0 Complete<br/>Ready for Operations])
-```
-
----
-
-## Phase 1: Regular OS Update Workflow
-
-```mermaid
-flowchart TD
-    Start([Scheduled OS Update Triggered]) --> PreBaseline[Step 1: Create Pre-Update Baseline on DEV<br/>task3-create-baseline.yml]
-    
-    PreBaseline --> PreBaseFile[Baseline File Created:<br/>pre-update-YYYYMMDD-timestamp.json]
-    
-    PreBaseFile --> OSUpdate[Step 2: Perform OS Update on DEV<br/>SSH to DEV<br/>apt update and apt upgrade<br/>Reboot if needed]
-    
-    OSUpdate --> VerifyDev{Verify DEV<br/>System Stable?<br/>Apache Running?}
-    
-    VerifyDev -->|Failed| RollbackDev[Rollback DEV<br/>Investigate Issues]
-    RollbackDev --> PreBaseline
-    
-    VerifyDev -->|Success| FineTune[Step 3: Automated Fine-Tuning<br/>fine-tune-profile-dev.yml]
-    
-    FineTune --> FineTuneSteps[Fine-Tuning Process:<br/>1 Create post-update baseline<br/>2 Detect changes<br/>3 Generate profile suggestions<br/>4 Apply suggestions to profile<br/>5 Toggle aa-audit mode ON<br/>6 Run functional tests<br/>7 Toggle aa-audit mode OFF]
-    
-    FineTuneSteps --> TestResult{DEV Tests<br/>Passed?}
-    
-    TestResult -->|Failed| Iterate[Manual Profile Refinement<br/>or Re-run refine-profile-dev.yml]
-    Iterate --> TestResult
-    
-    TestResult -->|Passed| GenApproval[Step 4: Generate Approval Document<br/>task3-approve-profile-update.yml]
-    
-    GenApproval --> HumanReview{Step 5: Human Review<br/>Changes Expected?<br/>Security Concerns?<br/>Ready for Production?}
-    
-    HumanReview -->|Rejected| InvestigateChanges[Investigate Unexpected Changes<br/>Refine Profile Re-test]
-    InvestigateChanges --> FineTune
-    
-    HumanReview -->|Approved| DeployProd[Step 6: Deploy Profile to Production<br/>deploy-profile-to-production.yml]
-    
-    DeployProd --> VerifyProdDeploy{Verify Production<br/>Profile Loaded?<br/>Apache Running?}
-    
-    VerifyProdDeploy -->|Failed| RollbackProd[Emergency Rollback<br/>Restore from backup]
-    RollbackProd --> InvestigateChanges
-    
-    VerifyProdDeploy -->|Success| ProdOSUpdate[Step 7: OS Update on Production<br/>Rolling Update Strategy]
-    
-    ProdOSUpdate --> Monitor[Step 8: Monitor Production<br/>24-72 hours]
-    
-    Monitor --> MonitorResult{Monitoring Period<br/>Stable?}
-    
-    MonitorResult -->|Issues Found| HandleIssues[Analyze Issues]
-    HandleIssues --> MonitorResult
-    
-    MonitorResult -->|Stable| Finalize[Finalize:<br/>Ensure aa-enforce mode<br/>Create post-update baseline<br/>Archive approval document]
-    
-    Finalize --> Complete([Phase 1 Complete<br/>Production Stable and Updated])
-```
-
----
-
-## Phase 2: Emergency Update Workflow
-
-```mermaid
-flowchart TD
-    Start([Emergency Security Alert Received]) --> Assess[Emergency Assessment<br/>What packages affected?<br/>Severity level?]
-    
-    Assess --> Decision{Risk Assessment<br/>Critical?}
-    
-    Decision -->|Low Risk| RegularPath[Use Regular Update Workflow<br/>Phase 1 Process]
-    RegularPath --> End1([Follow Phase 1])
-    
-    Decision -->|High Risk Urgent| CheckProd[Check Current Production State<br/>Package versions Apache status]
-    
-    CheckProd --> EmergencyBaseline[Fast-Track DEV Testing<br/>Create emergency baseline]
-    
-    EmergencyBaseline --> EmergencyUpdate[Apply Emergency Update on DEV<br/>apt install package-name]
-    
-    EmergencyUpdate --> FastFineTune[Run Fast Fine-Tuning<br/>fine-tune-profile-dev.yml<br/>audit_all_paths false]
-    
-    FastFineTune --> FastTest{DEV Quick Test<br/>Apache Functional?}
-    
-    FastTest -->|Failed| Escalate[Escalate Issue<br/>Consider workarounds]
-    Escalate --> End2([Alternative Solution Required])
-    
-    FastTest -->|Passed| MinimalApproval[Generate Emergency Approval]
-    
-    MinimalApproval --> QuickReview{Emergency Approval<br/>by On-Call Team?}
-    
-    QuickReview -->|Rejected| Escalate
-    
-    QuickReview -->|Approved| RolloutPlan[Emergency Deployment Plan<br/>Select canary machine<br/>Prepare rollback commands]
-    
-    RolloutPlan --> CanaryDeploy[Apply Update to Canary Machine]
-    
-    CanaryDeploy --> CanaryTest{Canary Verification<br/>15-30 min observation}
-    
-    CanaryTest -->|Failed| EmergencyRollback[EMERGENCY ROLLBACK<br/>Restore profile backup<br/>Downgrade package]
-    EmergencyRollback --> End3([Emergency Deployment Failed])
-    
-    CanaryTest -->|Success| RollingDeploy[Continue Rolling Deployment<br/>One machine at a time]
-    
-    RollingDeploy --> IntenseMonitor[Intensive Monitoring<br/>First 1-2 hours critical]
-    
-    IntenseMonitor --> Complete([Emergency Update Complete])
-```
-
----
-
-## Phase 3: Auto-Finetuning Process
-
-```mermaid
-flowchart TD
-    Start([Continuous Operations]) --> Monitor[Continuous Monitoring<br/>Daily Cron Job]
-    
-    Monitor --> DailyCheck[Daily Log Collection:<br/>Collect AppArmor DENIED logs<br/>Store in monitoring denials-DATE.log]
-    
-    DailyCheck --> DenialsFound{Denials<br/>Detected?}
-    
-    DenialsFound -->|No| Monitor
-    
-    DenialsFound -->|Yes| Alert[Alert Sent to Admin]
-    
-    Alert --> Analyze[Analyze Denials<br/>Review collected denial logs]
-    
-    Analyze --> Categorize[Categorize Denials:<br/>New file paths<br/>Permission changes<br/>Network operations]
-    
-    Categorize --> Assessment{Denial<br/>Assessment}
-    
-    Assessment -->|Expected New Feature| LegitimateChange[Legitimate Change Identified]
-    
-    Assessment -->|Unexpected Potential Attack| SecurityReview[SECURITY REVIEW REQUIRED]
-    
-    SecurityReview --> SecDecision{Security<br/>Assessment}
-    
-    SecDecision -->|False Positive Safe| LegitimateChange
-    SecDecision -->|Real Threat| Incident[Security Incident Response]
-    Incident --> End1([Follow Security Procedures])
-    
-    Assessment -->|Noise False Positive| RefineProfile[Profile Refinement Needed]
-    
-    LegitimateChange --> ReplicatePlan[Replicate on DEV<br/>Plan DEV replication]
-    RefineProfile --> ReplicatePlan
-    
-    ReplicatePlan --> PreChangeBase[Create Pre-Change Baseline on DEV]
-    
-    PreChangeBase --> RunFineTune[Run Fine-Tuning Workflow<br/>fine-tune-profile-dev.yml]
-    
-    RunFineTune --> TestPhase[Iterative Testing<br/>Comprehensive test suite]
-    
-    TestPhase --> TestResult{DEV Testing<br/>Result?}
-    
-    TestResult -->|Denials Still Present| FixNeeded{Fix Required?}
-    
-    FixNeeded -->|Yes Update Profile| AddRules[Add Modify Profile Rules]
-    AddRules --> TestPhase
-    
-    FixNeeded -->|No Acceptable| TestResult
-    
-    TestResult -->|Clean No Issues| PrepDeploy[Prepare for Deployment<br/>Generate approval document]
-    
-    PrepDeploy --> ApprovalReview{Human Approval<br/>for Production?}
-    
-    ApprovalReview -->|Rejected| Revise[Revise Approach]
-    Revise --> PrepDeploy
-    
-    ApprovalReview -->|Approved| DeployRefined[Deploy Refined Profile<br/>deploy-profile-to-production.yml]
-    
-    DeployRefined --> MonitorPeriod[Monitoring Period 24-48 Hours]
-    
-    MonitorPeriod --> MonitorResult{Monitoring<br/>Result?}
-    
-    MonitorResult -->|Issues Found| AssessIssue{Issue<br/>Severity?}
-    
-    AssessIssue -->|Critical| RollbackProfile[Rollback Profile]
-    RollbackProfile --> ReplicatePlan
-    
-    AssessIssue -->|Minor| DocumentIssue[Document Minor Issue]
-    DocumentIssue --> MonitorResult
-    
-    MonitorResult -->|Stable| Complete([Auto-Finetuning Complete])
-    
-    Complete --> Monitor
-```
-
----
 
 ## Rollback Decision Tree
 
