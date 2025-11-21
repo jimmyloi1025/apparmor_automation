@@ -27,7 +27,7 @@ This document provides a high-level overview of the automated AppArmor security 
 ```
 ┌─────────────────┐      ┌──────────────────┐      ┌─────────────────────┐
 │  Control Panel  │      │   DEV Machine    │      │  Production Fleet   │
-│   (Our Team)    │─────▶│  (Test Site)     │─────▶│  (Client Sites)     │
+│                 │─────▶│  (Test Site)     │─────▶│  (Client Sites)     │
 │                 │      │   Mirrors Prod   │      │   Multiple RPis     │
 └─────────────────┘      └──────────────────┘      └─────────────────────┘
 ```
