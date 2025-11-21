@@ -117,7 +117,10 @@ sequenceDiagram
         Human->>CP: Refine & Retry
     end
 
-    Note over Human,PROD: Resume Monitoring
+    Human->>CP: Test results are successful
+    CP->>PROD: Deploy approved OS update and AppArmor profile
+    PROD-->>CP: Report deployment status
+
 ```
 
 ---
