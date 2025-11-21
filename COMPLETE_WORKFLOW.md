@@ -64,24 +64,30 @@ graph TB
     
     Trigger -->|Scheduled Update| Phase1[Phase 1:<br/>Regular Update]
     Trigger -->|Emergency Patch| Phase2[Phase 2:<br/>Emergency Update]
-    Trigger -->|App Change| Phase3[Phase 3:<br/>Auto-Finetuning]
+    Trigger -->|App Change| PhaseApp[Profile Change<br/>or New App Feature]
     Trigger -->|No Event| Monitor
-    
-    Phase1 --> Prod1[Production Updated]
-    Phase2 --> Prod2[Production Updated]
-    Phase3 --> Prod3[Profile Refined]
-    
-    Prod1 --> Monitor
-    Prod2 --> Monitor
-    Prod3 --> Monitor
-    
+
+    Phase1 --> Post1[Production Updated]
+    Phase2 --> Post2[Production Updated]
+    PhaseApp --> PostApp[Profile Refined]
+
+    Post1 --> FineTune1[Auto-Finetuning:<br/>Monitor & Refine Profiles]
+    Post2 --> FineTune2[Auto-Finetuning:<br/>Monitor & Refine Profiles]
+    PostApp --> FineTuneApp[Auto-Finetuning:<br/>Monitor & Refine Profiles]
+
+    FineTune1 --> Monitor
+    FineTune2 --> Monitor
+    FineTuneApp --> Monitor
+
     style Start fill:#4CAF50,stroke:#2E7D32,color:#fff
     style Setup fill:#2196F3,stroke:#1565C0,color:#fff
     style Monitor fill:#FFC107,stroke:#F57C00,color:#000
     style Phase1 fill:#9C27B0,stroke:#6A1B9A,color:#fff
     style Phase2 fill:#F44336,stroke:#C62828,color:#fff
-    style Phase3 fill:#00BCD4,stroke:#00838F,color:#fff
-```
+    style PhaseApp fill:#00BCD4,stroke:#00838F,color:#fff
+    style FineTune1 fill:#00BCD4,stroke:#00838F,color:#fff
+    style FineTune2 fill:#00BCD4,stroke:#00838F,color:#fff
+    style FineTuneApp fill:#00BCD4,stroke:#00838F,color:#fff
 
 ### Actor Interaction Diagram
 
