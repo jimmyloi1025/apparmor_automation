@@ -51,43 +51,49 @@ This section provides comprehensive flowcharts for all workflow phases. These di
 ### High-Level Overview: Complete Lifecycle
 
 ```mermaid
-graph TB
-    Start([🚀 Project Start]) --> Phase0{Phase 0:<br/>Zero-Day<br/>Deployment?}
-    Phase0 -->|Yes| Setup[Setup Infrastructure]
-    Phase0 -->|Already Done| Monitor[Continuous Monitoring]
-    
-    Setup --> InitBaseline[Create Initial Baselines]
-    InitBaseline --> DeployProfiles[Deploy Initial Profiles]
-    DeployProfiles --> Monitor
-    
-    Monitor --> Trigger{Trigger Event?}
-    
-    Trigger -->|Scheduled Update| Phase1[Phase 1:<br/>Regular Update]
-    Trigger -->|Emergency Patch| Phase2[Phase 2:<br/>Emergency Update]
-    Trigger -->|App Change| PhaseApp[Profile Change<br/>or New App Feature]
-    Trigger -->|No Event| Monitor
+flowchart TB
+    A([🚀 Project Start])
+    B{Phase 0:<br>Zero-Day Deployment?}
+    C[Setup Infrastructure]
+    D[Create Initial Baselines]
+    E[Deploy Initial Profiles]
+    F[Continuous Monitoring]
+    G{Trigger Event?}
+    H1[Phase 1:<br>Regular Update]
+    H2[Phase 2:<br>Emergency Update]
+    H3[Profile Change<br>or New App Feature]
+    I1[Production Updated]
+    I2[Production Updated]
+    I3[Profile Refined]
+    J1[Auto-Finetuning:<br>Monitor & Refine Profiles]
+    J2[Auto-Finetuning:<br>Monitor & Refine Profiles]
+    J3[Auto-Finetuning:<br>Monitor & Refine Profiles]
 
-    Phase1 --> Post1[Production Updated]
-    Phase2 --> Post2[Production Updated]
-    PhaseApp --> PostApp[Profile Refined]
+    A --> B
+    B -- Yes --> C
+    B -- Already Done --> F
+    C --> D
+    D --> E
+    E --> F
+    F --> G
 
-    Post1 --> FineTune1[Auto-Finetuning:<br/>Monitor & Refine Profiles]
-    Post2 --> FineTune2[Auto-Finetuning:<br/>Monitor & Refine Profiles]
-    PostApp --> FineTuneApp[Auto-Finetuning:<br/>Monitor & Refine Profiles]
+    G -- Scheduled Update --> H1
+    G -- Emergency Patch --> H2
+    G -- App Change --> H3
+    G -- No Event --> F
 
-    FineTune1 --> Monitor
-    FineTune2 --> Monitor
-    FineTuneApp --> Monitor
+    H1 --> I1
+    H2 --> I2
+    H3 --> I3
 
-    style Start fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style Setup fill:#2196F3,stroke:#1565C0,color:#fff
-    style Monitor fill:#FFC107,stroke:#F57C00,color:#000
-    style Phase1 fill:#9C27B0,stroke:#6A1B9A,color:#fff
-    style Phase2 fill:#F44336,stroke:#C62828,color:#fff
-    style PhaseApp fill:#00BCD4,stroke:#00838F,color:#fff
-    style FineTune1 fill:#00BCD4,stroke:#00838F,color:#fff
-    style FineTune2 fill:#00BCD4,stroke:#00838F,color:#fff
-    style FineTuneApp fill:#00BCD4,stroke:#00838F,color:#fff
+    I1 --> J1
+    I2 --> J2
+    I3 --> J3
+
+    J1 --> F
+    J2 --> F
+    J3 --> F
+```
 
 ### Actor Interaction Diagram
 
