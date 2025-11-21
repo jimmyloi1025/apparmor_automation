@@ -57,7 +57,6 @@ flowchart TB
     C[Setup Infrastructure]
     D[Create Initial Baselines]
     E[Deploy Initial Profiles]
-    F[Continuous Monitoring]
     G{Trigger Event?}
     H1[Phase 1:<br>Regular Update]
     H2[Phase 2:<br>Emergency Update]
@@ -71,16 +70,15 @@ flowchart TB
 
     A --> B
     B -- Yes --> C
-    B -- Already Done --> F
+    B -- Already Done --> G
     C --> D
     D --> E
-    E --> F
-    F --> G
+    E --> G
 
     G -- Scheduled Update --> H1
     G -- Emergency Patch --> H2
     G -- App Change --> H3
-    G -- No Event --> F
+    G -- No Event --> G
 
     H1 --> I1
     H2 --> I2
@@ -90,10 +88,11 @@ flowchart TB
     I2 --> J2
     I3 --> J3
 
-    J1 --> F
-    J2 --> F
-    J3 --> F
+    J1 --> G
+    J2 --> G
+    J3 --> G
 ```
+
 
 ### Actor Interaction Diagram
 
