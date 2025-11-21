@@ -78,7 +78,6 @@ flowchart TB
     G -- Scheduled Update --> H1
     G -- Emergency Patch --> H2
     G -- App Change --> H3
-    G -- No Event --> G
 
     H1 --> I1
     H2 --> I2
@@ -91,6 +90,8 @@ flowchart TB
     J1 --> G
     J2 --> G
     J3 --> G
+```
+# End of Selection
 ```
 
 
