@@ -93,6 +93,8 @@ flowchart TB
 ```
 # End of Selection
 
+
+
 ### Actor Interaction Diagram
 
 This diagram shows the interaction between different actors (Control Panel, DEV Machine, Production Fleet, and Human Operator) during a typical Phase 1 workflow:
@@ -100,77 +102,22 @@ This diagram shows the interaction between different actors (Control Panel, DEV 
 ```mermaid
 sequenceDiagram
     actor Human as 👤 Human Operator
-    participant CP as 💻 Control Panel<br/>(Ansible)
-    participant DEV as 🔧 DEV Machine<br/>(Raspberry Pi)
-    participant PROD as 🏭 Production Fleet<br/>(Multiple RPis)
-    
-    Note over Human,PROD: Phase 1: Regular OS Update Workflow
-    
-    Human->>CP: Initiate OS Update Process
-    CP->>DEV: Create pre-update baseline
-    DEV-->>CP: Baseline JSON returned
-    
-    Human->>DEV: Perform OS update (apt upgrade)
-    DEV->>DEV: Reboot if needed
-    
-    CP->>DEV: Run fine-tune-profile-dev.yml
-    DEV->>DEV: Create post-update baseline
-    DEV->>DEV: Detect changes (compare baselines)
-    DEV->>DEV: Generate profile suggestions
-    DEV->>DEV: Apply suggestions to profile
-    DEV->>DEV: Toggle aa-audit mode ON
-    DEV->>DEV: Run Apache functional tests
-    DEV->>DEV: Toggle aa-enforce mode ON
-    DEV-->>CP: Delta report + Test results
-    
-    alt Tests Failed
-        CP->>Human: Alert: DEV tests failed
-        Human->>Human: Analyze failures
-        Human->>CP: Refine and retry
-        CP->>DEV: Re-run fine-tuning
-    end
-    
-    CP->>DEV: Generate approval document
-    DEV-->>CP: Approval document
-    
-    CP->>Human: Present approval doc for review
-    Human->>Human: Review changes & test results
-    
+    participant CP as 💻 Control Panel
+    participant DEV as 🔧 DEV Machine
+    participant PROD as 🏭 Production Fleet
+
+    Human->>CP: Start OS Update Process
+    CP->>DEV: Prepare and test profile
+    DEV-->>CP: Report results
+
     alt Approved
-        Human->>CP: Approve deployment
-        CP->>DEV: Fetch tested profile
-        DEV-->>CP: Profile file
-        CP->>PROD: Deploy profile to all machines
-        PROD->>PROD: Backup current profiles
-        PROD->>PROD: Apply new profile
-        PROD->>PROD: Reload AppArmor
-        PROD-->>CP: Deployment successful
-        
-        CP->>PROD: Perform OS update (rolling)
-        loop For each machine
-            PROD->>PROD: Update packages
-            PROD->>PROD: Reboot if needed
-            PROD-->>CP: Update status
-        end
-        
-        CP->>PROD: Monitor for 24-72 hours
-        PROD-->>CP: Logs & metrics
-        
-        alt Stable
-            CP->>PROD: Finalize (aa-enforce mode)
-            CP->>Human: Report: Update successful
-        else Issues detected
-            CP->>Human: Alert: Issues detected
-            Human->>CP: Initiate rollback
-            CP->>PROD: Rollback profile & packages
-        end
-    else Rejected
-        Human->>CP: Reject deployment
-        Human->>Human: Investigate unexpected changes
-        Human->>CP: Refine profile on DEV
+        CP->>PROD: Deploy profile and OS updates
+        PROD-->>CP: Report status
+    else Not Approved
+        Human->>CP: Refine & Retry
     end
-    
-    Note over Human,PROD: Workflow Complete - Return to Monitoring
+
+    Note over Human,PROD: Resume Monitoring
 ```
 
 ---
