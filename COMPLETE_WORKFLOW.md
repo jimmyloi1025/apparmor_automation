@@ -134,49 +134,32 @@ Set up the infrastructure and deploy initial AppArmor profiles to the production
 
 ### Phase 0: Zero-Day Deployment Workflow
 
+A simplified overview of the initial deployment process:
+
 ```mermaid
-graph TB
-    Start([📦 Phase 0 Start:<br/>Zero-Day Deployment]) --> CheckReq{Prerequisites<br/>Met?}
-    
-    CheckReq -->|No| SetupReq[Setup Ansible,<br/>SSH Keys,<br/>Network Access]
-    SetupReq --> CheckReq
-    CheckReq -->|Yes| CloneRepo[Clone/Setup Project<br/>on Control Panel]
-    
-    CloneRepo --> ConfigInventory[Configure hosts<br/>Inventory File]
-    ConfigInventory --> TestConn[Test Ansible<br/>Connectivity]
-    
-    TestConn -->|Failed| FixConn[Fix SSH/Network<br/>Issues]
-    FixConn --> TestConn
-    
-    TestConn -->|Success| DeployInfra[Deploy Monitoring<br/>Infrastructure<br/>apparmor-deploy.yml]
-    
-    DeployInfra --> VerifyDeploy{Verify Scripts<br/>& Directories<br/>Deployed?}
-    VerifyDeploy -->|No| FixDeploy[Check Playbook<br/>Errors]
-    FixDeploy --> DeployInfra
-    
-    VerifyDeploy -->|Yes| CreateProdBaseline[Create Initial Baseline<br/>on Production Fleet<br/>task3-create-baseline.yml]
-    
-    CreateProdBaseline --> DeployProfile[Deploy Initial<br/>AppArmor Profile<br/>to Production]
-    
-    DeployProfile --> ReloadProfile[Reload Profile &<br/>Set to Enforce Mode]
-    
-    ReloadProfile --> TestProd{Test Production<br/>Apache?}
-    TestProd -->|Failed| RollbackProfile[Rollback Profile<br/>Fix Issues]
-    RollbackProfile --> DeployProfile
-    
-    TestProd -->|Success| SyncDev[Sync Profile<br/>to DEV Machine]
-    
-    SyncDev --> CreateDevBaseline[Create Initial Baseline<br/>on DEV Machine]
-    
-    CreateDevBaseline --> Complete([✅ Phase 0 Complete:<br/>Ready for Operations])
-    
-    style Start fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style Complete fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style DeployInfra fill:#2196F3,stroke:#1565C0,color:#fff
-    style DeployProfile fill:#2196F3,stroke:#1565C0,color:#fff
-    style TestProd fill:#FF9800,stroke:#E65100,color:#fff
-    style CheckReq fill:#FF9800,stroke:#E65100,color:#fff
+graph TD
+    A([Start: Zero-Day Deployment]) --> B[Set up prerequisites:<br/>Ansible, SSH keys, Network]
+    B --> C[Clone or set up the project on Control Panel]
+    C --> D[Configure hosts inventory file]
+    D --> E[Test Ansible connectivity]
+    E --> F{Did it work?}
+    F -- No --> G[Fix SSH/Network issues] --> E
+    F -- Yes --> H[Deploy monitoring infrastructure<br/>(apparmor-deploy.yml)]
+    H --> I[Verify scripts and directories were deployed]
+    I --> J{Deployment OK?}
+    J -- No --> K[Check playbook errors] --> H
+    J -- Yes --> L[Create initial baseline on Production]
+    L --> M[Deploy initial AppArmor profile]
+    M --> N[Reload profile & set enforce mode]
+    N --> O[Test production Apache]
+    O --> P{Success?}
+    P -- No --> Q[Rollback profile & fix issues] --> M
+    P -- Yes --> R[Sync profile to DEV machine]
+    R --> S[Create baseline on DEV machine]
+    S --> T([Complete: Ready for Operations])
 ```
+
+This diagram shows the main steps and checks, with easy feedback loops for fixing issues as needed.
 
 ### Step 0.1: Initial Setup on Control Panel
 
@@ -375,81 +358,23 @@ Handle scheduled OS updates (e.g., monthly security patches) with automated prof
 ### Phase 1: Regular OS Update Workflow (Main Workflow)
 
 ```mermaid
-graph TB
-    Start([📅 Phase 1 Start:<br/>Regular OS Update]) --> PreBaseline[Step 1.1: Create Pre-Update<br/>Baseline on DEV<br/>task3-create-baseline.yml]
-    
-    PreBaseline --> OSUpdate[Step 1.2: Perform OS Update<br/>on DEV Machine<br/>apt upgrade]
-    
-    OSUpdate --> RebootCheck{Reboot<br/>Required?}
-    RebootCheck -->|Yes| Reboot[Reboot DEV<br/>Wait for Recovery]
-    RebootCheck -->|No| FineTune
-    Reboot --> FineTune
-    
-    FineTune[Step 1.3: Automated Fine-Tuning<br/>fine-tune-profile-dev.yml<br/>• Create post-update baseline<br/>• Detect changes<br/>• Generate suggestions<br/>• Apply to profile<br/>• Toggle aa-audit mode<br/>• Run tests<br/>• Toggle aa-enforce mode]
-    
-    FineTune --> DevTest{DEV Tests<br/>Passed?}
-    
-    DevTest -->|Failed| Analyze[Analyze Failures:<br/>• Review delta report<br/>• Check denied paths<br/>• Verify suggestions]
-    
-    Analyze --> RefineType{Refinement<br/>Approach?}
-    RefineType -->|Auto| RerunFineTune[Re-run fine-tune-profile-dev.yml<br/>with adjusted parameters]
-    RefineType -->|Manual| ManualFix[Manual Profile Edit<br/>on DEV]
-    
-    RerunFineTune --> DevTest
-    ManualFix --> RunTestAgain[Run Tests Again<br/>test_apache_functions.sh]
-    RunTestAgain --> DevTest
-    
-    DevTest -->|Passed| GenApproval[Step 1.4: Generate<br/>Approval Document<br/>task3-approve-profile-update.yml]
-    
-    GenApproval --> FetchApproval[Fetch Approval Doc<br/>to Control Panel]
-    
-    FetchApproval --> HumanReview{Step 1.5: Human Review<br/>& Approval}
-    
-    HumanReview -->|Rejected| InvestigateDelta[Investigate Unexpected<br/>Changes]
-    InvestigateDelta --> RefineType
-    
-    HumanReview -->|Approved| DeployProd[Step 1.6: Deploy Profile<br/>to Production<br/>deploy-profile-to-production.yml<br/>• Backup current profiles<br/>• Copy from DEV<br/>• Reload profiles<br/>• Verify Apache]
-    
-    DeployProd --> VerifyProdProfile{Profile Deployed<br/>Successfully?}
-    
-    VerifyProdProfile -->|No| EmergencyRollback[Emergency Rollback<br/>Restore Backup]
-    EmergencyRollback --> InvestigateProdIssue[Investigate DEV/Prod<br/>Differences]
-    InvestigateProdIssue --> RefineType
-    
-    VerifyProdProfile -->|Yes| UpdateProd[Step 1.7: Perform OS Update<br/>on Production<br/>Rolling Update Strategy]
-    
-    UpdateProd --> UpdateFirst[Update First<br/>Production Machine]
-    UpdateFirst --> TestFirst{First Machine<br/>OK?}
-    
-    TestFirst -->|No| RollbackFirst[Rollback First Machine]
-    RollbackFirst --> InvestigateProdIssue
-    
-    TestFirst -->|Yes| UpdateRemaining[Update Remaining<br/>Production Machines<br/>One at a Time]
-    
-    UpdateRemaining --> MonitorProd[Step 1.8: Monitor Production<br/>24-72 Hours<br/>• Check denials<br/>• Review audit logs<br/>• Monitor performance]
-    
-    MonitorProd --> MonitorResult{Production<br/>Stable?}
-    
-    MonitorResult -->|Issues Found| MinorIssue{Critical<br/>Issues?}
-    MinorIssue -->|Yes| EmergencyRollback
-    MinorIssue -->|No| EnableAudit[Enable aa-audit mode<br/>Gather More Data]
-    EnableAudit --> FixOnDev[Fix Profile on DEV<br/>Redeploy]
-    FixOnDev --> DeployProd
-    
-    MonitorResult -->|Stable| FinalizeEnforce[Finalize: Ensure<br/>aa-enforce Mode]
-    
-    FinalizeEnforce --> CreateFinalBaseline[Create Post-Update<br/>Baseline on Production]
-    
-    CreateFinalBaseline --> Complete([✅ Phase 1 Complete:<br/>Production Updated & Stable])
-    
+flowchart TD
+    Start([📅 Start:<br/>Regular OS Update]) 
+      --> PreBaseline[1. Pre-Update Baseline<br/>(DEV, task3-create-baseline.yml)]
+      --> OSUpdate[2. OS Update on DEV<br/>(apt upgrade)]
+      --> FineTune[3. Fine-Tune Profile<br/>(fine-tune-profile-dev.yml)]
+      --> Approve[4. Human Approval &<br/>Generate Approval Doc]
+      --> DeployProd[5. Deploy<br/>to Production]
+      --> UpdateProd[6. OS Update<br/>Production]
+      --> MonitorProd[7. Monitor <br/>Production (24-72h)]
+      --> Complete([✅ Complete: Production Updated & Stable])
+
     style Start fill:#9C27B0,stroke:#6A1B9A,color:#fff
     style Complete fill:#4CAF50,stroke:#2E7D32,color:#fff
     style FineTune fill:#2196F3,stroke:#1565C0,color:#fff
-    style DevTest fill:#FF9800,stroke:#E65100,color:#fff
-    style HumanReview fill:#FF9800,stroke:#E65100,color:#fff
+    style Approve fill:#FF9800,stroke:#E65100,color:#fff
     style DeployProd fill:#2196F3,stroke:#1565C0,color:#fff
     style MonitorProd fill:#FFC107,stroke:#F57C00,color:#000
-    style EmergencyRollback fill:#F44336,stroke:#C62828,color:#fff
 ```
 
 ### Step 1.1: Pre-Update Baseline (DEV Only)
@@ -746,70 +671,31 @@ Handle urgent security patches or critical updates that can't wait for the regul
 ### Phase 2: Ad-Hoc/Emergency Update Workflow
 
 ```mermaid
-graph TB
-    Start([🚨 Phase 2 Start:<br/>Emergency Update]) --> Assess[Step 2.1: Emergency Assessment<br/>• Identify affected packages<br/>• Check Apache dependency<br/>• Assess urgency vs risk]
-    
-    Assess --> DevFirst{Can Test<br/>on DEV First?}
-    
-    DevFirst -->|No - Critical| DirectProd[⚠️ Direct to Production<br/>High Risk Path]
-    DirectProd --> BackupAll[Backup All Profiles<br/>Take Snapshots]
-    BackupAll --> UpdateProdEmerg[Apply Emergency Update<br/>First Machine Only]
-    UpdateProdEmerg --> TestEmergProd
-    
-    DevFirst -->|Yes - Preferred| EmergBaseline[Step 2.2: Create Emergency<br/>Baseline on DEV]
-    
-    EmergBaseline --> FastUpdate[Apply Emergency Update<br/>on DEV<br/>apt install specific package]
-    
-    FastUpdate --> FastFineTune[Fast Fine-Tuning<br/>fine-tune-profile-dev.yml<br/>audit_all_paths=false<br/>Faster Detection]
-    
-    FastFineTune --> QuickReview[Quick Review Delta Report<br/>cat delta JSON]
-    
-    QuickReview --> DevTestEmerg{DEV Tests<br/>Passed?}
-    
-    DevTestEmerg -->|Failed| AssessFailure{Changes<br/>Significant?}
-    AssessFailure -->|Yes| EscalateEmerg[Escalate Decision<br/>Consider Workaround]
-    EscalateEmerg --> End([⛔ Emergency Aborted:<br/>Needs Further Analysis])
-    
-    AssessFailure -->|No - Minor| QuickFix[Quick Manual Fix]
-    QuickFix --> DevTestEmerg
-    
-    DevTestEmerg -->|Passed| DeployEmergProd[Step 2.3: Deploy to Production<br/>deploy-profile-to-production.yml]
-    
-    DeployEmergProd --> UpdateProdEmerg
-    
-    UpdateProdEmerg --> TestEmergProd{First Machine<br/>Stable?}
-    
-    TestEmergProd -->|No| RollbackEmerg[Immediate Rollback<br/>Profile + Package]
-    RollbackEmerg --> EscalateEmerg
-    
-    TestEmergProd -->|Yes| ContinueRollout{Continue to<br/>Other Machines?}
-    
-    ContinueRollout -->|Yes| UpdateNextMachine[Update Next Machine<br/>serial=1 Controlled Rollout]
-    UpdateNextMachine --> AllDone{All Machines<br/>Updated?}
-    
-    AllDone -->|No| UpdateNextMachine
-    AllDone -->|Yes| IntensiveMonitor
-    
-    ContinueRollout -->|Monitor First| IntensiveMonitor[Step 2.4: Intensive Monitoring<br/>Check every 15 min<br/>for 1-2 hours]
-    
-    IntensiveMonitor --> StableCheck{Production<br/>Stable?}
-    
-    StableCheck -->|Issues| RollbackEmerg
-    StableCheck -->|Stable 1-2h| ReduceMonitor[Reduce to Normal<br/>Monitoring Schedule]
-    
-    ReduceMonitor --> FinalCheck[Continue Monitoring<br/>24 Hours]
-    
-    FinalCheck --> CompleteEmerg([✅ Phase 2 Complete:<br/>Emergency Update Deployed])
-    
-    style Start fill:#F44336,stroke:#C62828,color:#fff
-    style CompleteEmerg fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style End fill:#9E9E9E,stroke:#616161,color:#fff
+flowchart TD
+    Start([🚨 Start: Emergency Update]) --> Assess[1. Assess Emergency<br/>Update Scope]
+    Assess --> TestDev{Test on DEV?}
+    TestDev -- "Yes" --> DevBaseline[2. Create Emergency Baseline (DEV)]
+    DevBaseline --> DevUpdate[3. Apply Update (DEV)]
+    DevUpdate --> FineTune[4. Fast Fine-Tune & Test]
+    FineTune --> DevTestsPassed{DEV Tests Passed?}
+    DevTestsPassed -- "No" --> Abort([⛔ Abort / Analyze Issues])
+    DevTestsPassed -- "Yes" --> DeployProd[5. Deploy to Production]
+    TestDev -- "No (Critical)" --> DirectProd[⚠️ Go Direct to Prod]
+    DirectProd --> DeployProd
+    DeployProd --> FirstTest[6. Test First Prod Machine]
+    FirstTest -- "Stable" --> Rollout[7. Roll Out to Rest (One at a Time)]
+    FirstTest -- "Issues" --> Rollback([⛔ Rollback Update])
+    Rollout --> Monitor[8. Monitor Logs (24h)]
+    Monitor --> Done([✅ Emergency Update Complete])
+
+    style Start      fill:#F44336,stroke:#C62828,color:#fff
+    style Done       fill:#4CAF50,stroke:#2E7D32,color:#fff
+    style Abort      fill:#9E9E9E,stroke:#616161,color:#fff
+    style Rollback   fill:#9E9E9E,stroke:#616161,color:#fff
     style DirectProd fill:#FF5722,stroke:#D84315,color:#fff
-    style EscalateEmerg fill:#FF5722,stroke:#D84315,color:#fff
-    style DevTestEmerg fill:#FF9800,stroke:#E65100,color:#fff
-    style TestEmergProd fill:#FF9800,stroke:#E65100,color:#fff
-    style IntensiveMonitor fill:#FFC107,stroke:#F57C00,color:#000
+    style DevTestsPassed fill:#FF9800,stroke:#E65100,color:#fff
 ```
+# This simplified diagram reduces nodes and branches to the core flow only.
 
 
 ### Step 2.1: Emergency Assessment
@@ -931,87 +817,35 @@ Continuous refinement of AppArmor profiles based on observed behavior, even outs
 ### Phase 3: Auto-Finetuning Process
 
 ```mermaid
-graph TB
-    Start([🔄 Phase 3 Start:<br/>Auto-Finetuning]) --> SetupMonitor[Step 3.1: Setup Continuous<br/>Monitoring<br/>• Create daily_monitor.sh<br/>• Add to crontab<br/>• Configure alerts]
-    
-    SetupMonitor --> DailyRun[Daily Cron Job Runs<br/>Collect Denial Logs]
-    
-    DailyRun --> CheckDenials{Denials<br/>Detected?}
-    
-    CheckDenials -->|No| WaitNext[Wait for Next Day]
-    WaitNext --> DailyRun
-    
-    CheckDenials -->|Yes| SendAlert[Send Email Alert<br/>to Admin]
-    
-    SendAlert --> AnalyzeDenials[Step 3.2: Analyze Denials<br/>• Parse logs<br/>• Group by path/type<br/>• Identify patterns]
-    
-    AnalyzeDenials --> Categorize{Step 3.2: Categorize<br/>Denials}
-    
-    Categorize -->|Expected - New Feature| ValidChange[Valid Application<br/>Change]
-    Categorize -->|Unexpected| InvestigateSecurity[Investigate Potential<br/>Security Issue]
-    Categorize -->|Noise/False Positive| TuneApp[Tune Application<br/>or Adjust Profile Logic]
-    
-    InvestigateSecurity --> SecThreat{Security<br/>Threat?}
-    SecThreat -->|Yes| IncidentResponse[Trigger Incident<br/>Response]
-    SecThreat -->|No| ValidChange
-    
-    ValidChange --> ReplicateDev[Step 3.3: Replicate on DEV<br/>• Deploy same app change<br/>• Or create test scenario]
-    
-    ReplicateDev --> CreateAutoBaseline[Create Pre-Change<br/>Baseline on DEV<br/>task3-create-baseline.yml]
-    
-    CreateAutoBaseline --> ApplyChange[Apply Application Change<br/>on DEV]
-    
-    ApplyChange --> AutoFineTune[Run Fine-Tuning<br/>fine-tune-profile-dev.yml<br/>audit_all_paths=true]
-    
-    AutoFineTune --> IterativeTest[Step 3.4: Iterative Testing<br/>• Enable aa-audit<br/>• Run comprehensive tests<br/>• Check for denials]
-    
-    IterativeTest --> TestResult{Tests Clean?<br/>No Denials?}
-    
-    TestResult -->|Denials Found| AnalyzeNewDenials[Analyze New Denials]
-    AnalyzeNewDenials --> AddToProfile{Add to<br/>Profile?}
-    
-    AddToProfile -->|Yes| UpdateProfileDev[Update Profile on DEV<br/>Apply new rules]
-    UpdateProfileDev --> IterativeTest
-    
-    AddToProfile -->|No - App Issue| FixApp[Fix Application<br/>Behavior]
-    FixApp --> IterativeTest
-    
-    TestResult -->|Clean| DeployRefined[Step 3.5: Deploy Refined<br/>Profile to Production<br/>deploy-profile-to-production.yml]
-    
-    DeployRefined --> EnableProdAudit[Enable aa-audit Mode<br/>on Production<br/>Optional Monitoring Period]
-    
-    EnableProdAudit --> MonitorAuto[Monitor Production<br/>24-48 Hours]
-    
-    MonitorAuto --> ProdClean{Production<br/>Clean?}
-    
-    ProdClean -->|Issues| MinorProdIssue{Minor or<br/>Critical?}
-    MinorProdIssue -->|Critical| RollbackAuto[Rollback Profile]
-    RollbackAuto --> InvestigateSecurity
-    
-    MinorProdIssue -->|Minor| TweakProfile[Tweak Profile on DEV<br/>Redeploy]
-    TweakProfile --> DeployRefined
-    
-    ProdClean -->|Clean| FinalizeAuto[Finalize: Set to<br/>aa-enforce Mode]
-    
-    FinalizeAuto --> DocumentChange[Document Change<br/>Update Baseline]
-    
-    DocumentChange --> CompleteAuto([✅ Phase 3 Complete:<br/>Profile Refined])
-    
-    CompleteAuto --> DailyRun
-    
-    IncidentResponse --> EndIncident([🛑 Incident Response<br/>Follow Security Procedures])
-    TuneApp --> DailyRun
-    
+flowchart TD
+    Start([🔄 Start Phase 3:<br/>Auto-Finetuning])
+    Start --> Monitor[1. Monitor Denials Daily<br/>via Cron Job]
+    Monitor --> DenialCheck{2. Denials Detected?}
+    DenialCheck -- No --> NextDay[Wait for Next Day]
+    DenialCheck -- Yes --> Review[3. Review Denials]
+    Review --> Legit{4. Legitimate Change?}
+    Legit -- Yes --> TuneProfile[Update/Tune Profile on DEV]
+    TuneProfile --> Test[5. Test on DEV]
+    Test --> Clean{Tests Clean?}
+    Clean -- Yes --> Deploy[6. Deploy Profile<br/>to Production]
+    Deploy --> MonitorProd[Monitor Production]
+    MonitorProd --> Success{Issues?}
+    Success -- No --> Done([✅ Done: Profile Refined])
+    Success -- Yes --> Rollback[Rollback or Retune]
+
+    Legit -- No --> Investigate[Investigate Security]
+    Investigate --> End([🛑 Incident Response if Needed])
+
     style Start fill:#00BCD4,stroke:#00838F,color:#fff
-    style CompleteAuto fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style DailyRun fill:#FFC107,stroke:#F57C00,color:#000
-    style CheckDenials fill:#FF9800,stroke:#E65100,color:#fff
-    style Categorize fill:#FF9800,stroke:#E65100,color:#fff
-    style SecThreat fill:#FF9800,stroke:#E65100,color:#fff
-    style IncidentResponse fill:#F44336,stroke:#C62828,color:#fff
-    style EndIncident fill:#F44336,stroke:#C62828,color:#fff
-    style IterativeTest fill:#2196F3,stroke:#1565C0,color:#fff
+    style Done fill:#4CAF50,stroke:#2E7D32,color:#fff
+    style Monitor fill:#FFC107,stroke:#F57C00,color:#000
+    style DenialCheck fill:#FF9800,stroke:#E65100,color:#fff
+    style Legit fill:#FF9800,stroke:#E65100,color:#fff
+    style Investigate fill:#F44336,stroke:#C62828,color:#fff
+    style End fill:#F44336,stroke:#C62828,color:#fff
+    style Test fill:#2196F3,stroke:#1565C0,color:#fff
 ```
+/ End of Selection
 
 
 ### When to Use Auto-Finetuning
